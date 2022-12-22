@@ -6,7 +6,7 @@ from Common import into_float, formatted_sqlite_date_time_now, convert_int_date_
 class Invoice:
     """Класс, описывающий модель инвойса."""
 
-    def __init__(self, amount: float or int, category, date_time=None, income=False, expense=False):
+    def __init__(self, amount: float or int, category=None, date_time=None, income=False, expense=False):
         """Конструктор по умолчанию."""
         self.__date_time = None
         amount = into_float(amount)
