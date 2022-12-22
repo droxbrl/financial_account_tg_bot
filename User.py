@@ -1,7 +1,7 @@
 """Модуль пользователей бота."""
 
 import WorkerDB
-
+from Common import into_int
 
 class User:
     """Класс, описывающий модель пользователя."""
@@ -11,14 +11,9 @@ class User:
         self.__is_registered = False
         self.__is_valid = False
 
-        if isinstance(id, int):
-            self.__id = id
-        elif isinstance(id, str):
-            try:
-                self.__id = int(''.join(id.split()))
-                self.__is_valid = True
-            except ValueError:
-                self.__id = None
+        self.__id = into_int(id)
+        if self.__id is None:
+            self.__is_valid = True
 
         if self.__is_valid:
             self.__is_registered = self.__check_registration()
