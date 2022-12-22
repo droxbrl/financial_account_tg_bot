@@ -1,8 +1,11 @@
 """Модуль пользователей бота."""
 
+import WorkerDB
+
 
 class User:
     """Класс, описывающий модель пользователя."""
+
     def __init__(self, id: (int, str), name: str):
 
         self.__is_registered = False
@@ -17,6 +20,8 @@ class User:
             except ValueError:
                 self.__id = None
 
+        if self.__is_valid:
+            self.__is_registered = self.__check_registration()
         self.__name = name.strip()
 
     def get_id(self) -> int:
@@ -31,6 +36,16 @@ class User:
         """Возвращает признак, верно ли указана информация пользователя."""
         return self.__is_valid
 
-    def is_registered(self) -> bool:
-        """Возвращает признак того, зарегистрирован ли пользователь в БД."""
-        pass
+    def __check_registration(self) -> bool:
+        """Проверяет, есть ли пользователь с таким id в БД."""
+        if WorkerDB.get_by_id(id=self.__id,
+                              column_id_name='user_id',
+                              table_name='users',
+                              columns=['user_id', 'user_name']) is None:
+            return False
+        else:
+            return True
+
+    def get_is_registered(self) -> bool:
+        """ Возвращает признак того, зарегистрирован ли пользователь. """
+        return self.__is_registered

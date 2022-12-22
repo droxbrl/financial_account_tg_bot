@@ -3,6 +3,7 @@
 import sqlite3
 from typing import List, Dict
 
+
 class DataBaseWorker:
     """Класс для подключения и курсора БД SQLite3."""
 
@@ -44,8 +45,8 @@ class DataBaseWorker:
 
 def get_by_id(id: (str, int), table_name: str, columns: List[str], column_id_name='id', dbw=None) -> Dict or None:
     """
-        Возвращает все значения полей из таблицы БД по переданному id.
-        Если записи нет или возникла ошибка - возвращает None.
+        Возвращает значения полей из таблицы БД по переданному id и списку полей, переданному в columns.
+        Если записей нет или возникла ошибка - возвращает None.
     """
     if dbw is None:
         dbw = DataBaseWorker()
@@ -70,5 +71,5 @@ def get_by_id(id: (str, int), table_name: str, columns: List[str], column_id_nam
     result = {}
     for index, column in enumerate(columns):
         result[column] = sql_result[index]
-
+    dbw.close()
     return result
