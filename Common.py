@@ -1,29 +1,35 @@
 """Общие функции."""
 
 
-def into_int(input_value: str or int) -> int or None:
+def into_int(input_value: str or int or float) -> int or None:
     """Приводит к типу int, если возникает ошибка ValueError - возвращает None."""
     if isinstance(input_value, int):
         return input_value
-    try:
-        result = int(''.join(input_value.split()))
-    except ValueError:
-        result = None
-    return result
+    elif isinstance(input_value, float):
+        return int(input_value)
+    else:
+        try:
+            result = int(''.join(input_value.split()))
+        except ValueError:
+            result = None
+        return result
 
 
 def into_float(input_value: str or int) -> float or None:
     """Приводит к типу float, если возникает ошибка ValueError - возвращает None."""
     if isinstance(input_value, float):
         return input_value
-    try:
-        result = float(''.join(input_value.split()).replace(',', '.'))
-    except ValueError:
-        result = None
-    return result
+    elif isinstance(input_value, int):
+        return float(input_value)
+    else:
+        try:
+            result = float(''.join(input_value.split()).replace(',', '.'))
+        except ValueError:
+            result = None
+        return result
 
 
-def into_money_format(input_value: str or int or float) -> str:
+def into_str_money_format(input_value: str or int or float) -> str:
     """
         Приводит к типу str в формате представления денежных средств, пример:
         10000.00 -> '10 000.00'
