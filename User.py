@@ -3,8 +3,10 @@
 import WorkerDB
 from Common import into_int
 
+
 class User:
     """Класс, описывающий модель пользователя."""
+    __is_registered: bool
 
     def __init__(self, id: (int, str), name: str):
 
@@ -28,7 +30,7 @@ class User:
         return self.__name
 
     def is_valid(self) -> bool:
-        """Возвращает признак, верно ли указана информация пользователя."""
+        """Возвращает признак, верно ли заполнены поля пользователя."""
         return self.__is_valid
 
     def __check_registration(self) -> bool:
