@@ -46,6 +46,6 @@ class User:
         else:
             return True
 
-    def get_is_registered(self) -> bool:
+    def is_registered(self) -> bool:
         """ Возвращает признак того, зарегистрирован ли пользователь. """
         return self.__is_registered
