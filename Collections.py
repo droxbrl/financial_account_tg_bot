@@ -1,5 +1,7 @@
 """Универсальные коллекции значений."""
 
+from typing import Any
+
 
 class Column:
     """Модель колонки."""
@@ -51,9 +53,9 @@ class Columns:
         """Удаляет все колонки из коллекции."""
         self.__columns.clear()
 
-    def find(self, search_column: str or Column) -> dict:
+    def find(self, search_column: str or Column or int) -> dict:
         """
-            Поиск в массиве колонок по имени колонки или по экземпляру класса Column.
+            Поиск в массиве колонок по имени колонки или по экземпляру класса Column или индексу.
             Возвращает словарь вида ('index': индекс_искомой_колонки,
                                      'column': искомая_колонки(экземпляр класса Column)
                                      'exist': True или False
@@ -81,14 +83,14 @@ class Columns:
 
     def get_columns(self) -> list[Column]:
         """Возвращает массив колонок коллекции."""
-        return self.__columns.copy()
+        return self.__columns
 
     def set_columns(self, columns: list[str or Column]):
         """ Очищает колонки и устанавливает уникальные колонки из массива.
             Если после установки колонок, новый массив коллекции пустой, тогда
             устанавливает значения колонок до установки новых.
         """
-        current_columns = self.get_columns()
+        current_columns = self.get_columns().copy()
         self.delete_all()
         for column in columns:
             self.append(column=column)
@@ -102,3 +104,202 @@ class Columns:
             'column': None,
             'exist': False,
         }
+
+
+class Row:
+    """Модель строки."""
+
+    def __init__(self, values: list or None or Any):
+        if values is None:
+            values = []
+        elif not isinstance(values, list):
+            values = [values]
+        self.values = values
+
+    def delete(self, value: int or Any):
+        """Заменяет значение по индексу или значению на None."""
+        if isinstance(value, int):
+            index = value
+        else:
+            try:
+                index = self.values.index(value)
+            except ValueError:
+                index = None
+
+        if index is not None:
+            self.values[index] = None
+
+    def count(self):
+        """Возвращает количество значений в строке."""
+        return len(self.values)
+
+    def ubound(self):
+        """Возвращает максимальный индекс значений в строке."""
+        return self.count() - 1
+
+    def append(self, value: Any):
+        """Добавляет значение в строку."""
+        self.values.append(value)
+
+
+class Rows:
+    """Модель строк."""
+
+    def __init__(self, rows: list[Row] or None or Any):
+        self.__rows = []
+        if rows is not None:
+            if not isinstance(rows, list):
+                rows = [rows]
+            for row in rows:
+                self.append(row=row)
+
+    def append(self, row: Row or None):
+        """Добавляет строку в коллекцию строк."""
+        if isinstance(row, Row):
+            self.__rows.append(row)
+        else:
+            self.__rows.append(Row(values=row))
+
+    def delete(self, row: Row or int):
+        """Удаляет строку по индексу или экземпляру класса Row."""
+        if isinstance(row, Row):
+            try:
+                index = self.get_rows().index(row)
+            except ValueError:
+                index = None
+        elif isinstance(row, int):
+            index = row
+        else:
+            index = None
+
+        if index is not None:
+            self.__rows.pop(index)
+
+    def delete_all(self):
+        """Удаляет все строки из коллекции."""
+        self.__rows.clear()
+
+    def get_rows(self) -> list[Row]:
+        """Возвращает массив строк."""
+        return self.__rows
+
+    def get_row(self, index: int) -> Row or None:
+        """Возвращает строку или None по индексу."""
+        try:
+            return self.__rows[index]
+        except IndexError:
+            return None
+
+    def count(self) -> int:
+        """Возвращает количество строк в коллекции."""
+        return len(self.get_rows())
+
+    def ubound(self) -> int:
+        """Возвращает максимальный индекс строки в коллекции."""
+        return self.count() - 1
+
+
+class Table:
+    """Модель таблицы."""
+
+    def __init__(self, columns: list or str or None or Columns, rows: None or Any or Rows):
+        self.__rows = Rows(rows=None)
+        self.__columns = Columns(columns_names=None)
+        if not isinstance(rows, Rows):
+            rows = Rows(rows=rows)
+        if isinstance(columns, Columns):
+            self.__columns = columns
+        else:
+            self.__columns = Columns(columns_names=columns)
+
+        columns_count = self.__columns.count()
+        for row in rows.get_rows():
+            row_count = row.count()
+            if row_count > columns_count:
+                raise ValuesMoreThanColumns()
+
+            elif row_count < columns_count:
+                difference = columns_count - row_count
+                while difference != 0:
+                    row.append(value=None)
+                    difference -= 1
+
+        self.__rows = rows
+
+    class __Cell:
+        """ Описывает модель ячейки таблицы."""
+
+        def __init__(self, column: dict, row: Row, value: Any):
+            self.column = column
+            self.row = row
+            self.value = value
+
+        def set_value(self, value: Any):
+            """Устанавливает значение в ячейку."""
+            index = self.column['index']
+            self.row.values[index] = value
+
+    def get_value(self, column: int or Column or str, row_index: int) -> Any:
+        """
+            Возвращает значение ячейки таблицы по индексу колонки и строки (Row),
+            по имени колонки (Column) и индексу строки (Row),
+            по колонке (Column) и индексу строки (Row).
+            При ошибке поиска ячейки вызывает исключения: NoSuchColumn, RowIndexError
+        """
+
+        return self.__find_cell(column=column, row_index=row_index).value
+
+    def set_value(self, value: Any, column: int or Column or str, row_index: int):
+        """
+            Устанавливает значение value в ячейку таблицы по индексу колонки и строки (Row),
+            по имени колонки (Column) и индексу строки (Row),
+            по колонке (Column) и индексу строки (Row).
+            При ошибке поиска ячейки вызывает исключения: NoSuchColumn, RowIndexError
+        """
+        cell = self.__find_cell(column=column, row_index=row_index)
+        cell.set_value(value=value)
+
+    def get_columns(self) -> Columns:
+        """Возвращает коллекцию колонок таблицы."""
+        return self.__columns
+
+    def get_rows(self) -> Rows:
+        """Возвращает коллекцию строк таблицы."""
+        return self.__rows
+
+    def __find_cell(self, column: int or Column or str, row_index: int) -> __Cell:
+        """ Ищет и возвращает ячейку (__Cell) таблицы по индексу колонки и строки (Row),
+            по имени колонки (Column) и индексу строки (Row),
+            по колонке (Column) и индексу строки (Row).
+            При ошибке поиска ячейки вызывает исключения: NoSuchColumn, RowIndexError
+        """
+        found_column = self.get_columns().find(search_column=column)
+        if not found_column['exist']:
+            raise NoSuchColumn
+
+        found_row = self.get_rows().get_row(index=row_index)
+        if found_row is None:
+            raise RowIndexError
+
+        return self.__Cell(column=found_column, row=found_row, value=found_row.values[found_column['index']])
+
+
+class ValuesMoreThanColumns(Exception):
+    """Исключение возникает, если в таблицу (Table) передано значений (Rows) больше чем колонок (Columns)."""
+
+    def __init__(self):
+        self.txt = 'There are more rows than columns in the table!'
+
+
+class NoSuchColumn(Exception):
+    """Исключение возникает, если в таблице (Table) нет искомой колонки (Column)."""
+
+    def __init__(self):
+        self.text = 'There is no such column in the table!'
+
+
+class RowIndexError(IndexError):
+    """Исключение возникает, если в таблице (Table) нет искомой строки (Row)."""
+
+    def __init__(self):
+        self.text = 'There is no such row in the table!'
