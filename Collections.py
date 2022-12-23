@@ -3,12 +3,14 @@
 
 class Column:
     """Модель колонки."""
+
     def __init__(self, name: str):
         self.name = name.capitalize().strip()
 
 
 class Columns:
     """Модель колонок."""
+
     def __init__(self, columns_names: list or str or None):
         self.__columns = []
         if isinstance(columns_names, str):
@@ -29,7 +31,6 @@ class Columns:
         """Удаляет колонку из коллекции."""
         # TODO: Реализовать удаление + удаление по индексу ?
         pass
-
 
     def find(self, search_column: str or Column) -> dict:
         """
@@ -62,15 +63,14 @@ class Columns:
     def __get_search_result(self) -> dict:
         """Возвращает пустой словарь для хранения результата поиска в коллекции."""
         return {
-                'index': None,
-                'column': None,
-                'exist': False,
+            'index': None,
+            'column': None,
+            'exist': False,
         }
 
 
-
-c_n = ['сумма','Итого']
+c_n = ['сумма', 'Итого']
 c_n.append()
 columns_collection = Columns(columns_names=c_n)
 f = columns_collection.find('итого')
-asd=1
+asd = 1
