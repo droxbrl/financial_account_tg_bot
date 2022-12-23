@@ -1,6 +1,7 @@
 """Универсальные коллекции значений."""
 
 from typing import Any
+from NewExeptions import NoSuchColumn, ValuesMoreThanColumns, RowIndexError
 
 
 class Column:
@@ -282,24 +283,3 @@ class Table:
             raise RowIndexError
 
         return self.__Cell(column=found_column, row=found_row, value=found_row.values[found_column['index']])
-
-
-class ValuesMoreThanColumns(Exception):
-    """Исключение возникает, если в таблицу (Table) передано значений (Rows) больше чем колонок (Columns)."""
-
-    def __init__(self):
-        self.txt = 'There are more rows than columns in the table!'
-
-
-class NoSuchColumn(Exception):
-    """Исключение возникает, если в таблице (Table) нет искомой колонки (Column)."""
-
-    def __init__(self):
-        self.text = 'There is no such column in the table!'
-
-
-class RowIndexError(IndexError):
-    """Исключение возникает, если в таблице (Table) нет искомой строки (Row)."""
-
-    def __init__(self):
-        self.text = 'There is no such row in the table!'
