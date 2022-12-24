@@ -20,3 +20,10 @@ class RowIndexError(IndexError):
 
     def __init__(self):
         self.text = 'There is no such row in the table!'
+
+
+class EmptyName(Exception):
+    """Исключение возникает, когда установили атрибуту name значение равное пустой строке."""
+
+    def __init__(self):
+        self.text = 'Name cannot be empty string!'

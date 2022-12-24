@@ -1,6 +1,6 @@
 """Модуль пользователей бота."""
 
-import WorkerDB
+from WorkerDB import get_by_id
 from Common import into_int
 
 
@@ -8,25 +8,25 @@ class User:
     """Класс, описывающий модель пользователя."""
     __is_registered: bool
 
-    def __init__(self, id: (int, str), name: str):
+    def __init__(self, user_id: (int, str), user_name: str):
 
         self.__is_registered = False
         self.__is_valid = False
 
-        self.__id = into_int(id)
+        self.__id = into_int(user_id)
         if self.__id is None:
             self.__is_valid = True
 
         if self.__is_valid:
             self.__is_registered = self.__check_registration()
-        self.__name = name.strip()
+        self.__name = user_name.strip()
 
     def get_id(self) -> int:
         """Возвращает id пользователя."""
         return self.__id
 
     def get_name(self) -> str:
-        """Возвразает name (имя) пользователя."""
+        """Возвращает name (имя) пользователя."""
         return self.__name
 
     def is_valid(self) -> bool:
@@ -35,10 +35,12 @@ class User:
 
     def __check_registration(self) -> bool:
         """Проверяет, есть ли пользователь с таким id в БД."""
-        if WorkerDB.get_by_id(id=self.__id,
-                              column_id_name='user_id',
-                              table_name='users',
-                              columns=['user_id', 'user_name']) is None:
+        if get_by_id(
+                id=self.get_id(),
+                column_id_name='user_id',
+                table_name='users',
+                columns=['user_id', 'user_name']
+        ) is None:
             return False
         else:
             return True
