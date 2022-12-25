@@ -3,6 +3,7 @@
 import sqlite3
 from typing import List, Dict, Optional
 from Common import into_int
+from Collections import Table
 
 
 class DataBaseWorker:
@@ -121,7 +122,6 @@ def insert(table_name: str, column_values: Dict, dbw: Optional[DataBaseWorker] =
 
 def update(id: (str, int), table_name: str, column_values: Dict, column_id_name='id',
            dbw: Optional[DataBaseWorker] = None):
-
     """Обновляет данные записей в БД."""
     if not dbw:
         dbw = DataBaseWorker()
@@ -138,3 +138,73 @@ def update(id: (str, int), table_name: str, column_values: Dict, column_id_name=
         except sqlite3.OperationalError:
             dbw.close()
     dbw.close()
+
+
+def get_all(table_name: str, columns_aliases: Optional[Table] = None,
+            dbw: Optional[DataBaseWorker] = None) -> List[Dict] or None:
+    """
+        Возвращает список словарей всех записей таблицы.
+        Если таблица пустая - возвращает пустой список.
+        Если возникает ошибка - возвращает None.
+    """
+    if not dbw:
+        dbw = DataBaseWorker()
+    if columns_aliases is None:
+        columns_aliases = __columns_names(table_name, dbw=dbw)
+
+    select_section = ''
+    max_index = columns_aliases.rows.ubound()
+    current_row_index = 0
+    while current_row_index <= max_index:
+        name = columns_aliases.get_value(column='Name', row_index=current_row_index)
+        alias = columns_aliases.get_value(column='Alias', row_index=current_row_index)
+        current_select_section = f'{name} AS {alias}'
+        current_row_index += 1
+        if current_row_index <= max_index:
+            current_select_section += ', '
+        select_section += current_select_section
+    sql_text = f'SELECT {select_section} FROM {table_name}'
+    dbw.set_query_text(sql_text)
+    try:
+        dbw.execute()
+    except sqlite3.OperationalError:
+        dbw.close()
+        return None
+    sql_result = dbw.cursor.fetchall()
+    dbw.close()
+    if len(sql_result) == 0:
+        return sql_result
+    result = []
+    for item in sql_result:
+        new_dict = {}
+        current_row_index = 0
+        max_rows_index = columns_aliases.rows.ubound()
+        for value in item:
+            new_dict.update({columns_aliases.get_value(column='Alias', row_index=current_row_index): value})
+            current_row_index += 1
+            if max_rows_index < current_row_index:
+                break
+        result.append(new_dict)
+    return result
+
+
+def __table_info(table_name: str, dbw: Optional[DataBaseWorker] = None) -> List:
+    """Возвращает список с информацией о таблице БД."""
+    if not dbw:
+        dbw = DataBaseWorker()
+    sql_text = f'pragma table_info({table_name})'
+    dbw.set_query_text(sql_text)
+    dbw.execute()
+    sql_result = dbw.cursor.fetchall()
+    return sql_result
+
+
+def __columns_names(table_name: str, dbw: Optional[DataBaseWorker] = None) -> Table:
+    """Возвращает имена и псевдонимы колонок таблицы."""
+    if not dbw:
+        dbw = DataBaseWorker()
+    table_info = __table_info(table_name=table_name, dbw=dbw)
+    result_table = Table(columns=['Name', 'Alias'])
+    for column_info in table_info:
+        result_table.rows.append(row=[column_info[1], column_info[1]])
+    return result_table
