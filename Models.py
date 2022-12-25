@@ -344,7 +344,7 @@ def all_categories_from_db() -> List[Category]:
     return result
 
 
-def all_currencies_from_db() -> List[Category]:
+def all_currencies_from_db() -> list[Currency]:
     """Возвращает список всех валют из БД или пустой список, если нет записей в таблице."""
     currencies = get_all(table_name='currencies')
     result = []
