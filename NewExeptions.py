@@ -27,3 +27,10 @@ class EmptyName(Exception):
 
     def __init__(self):
         self.text = 'Name cannot be empty string!'
+
+
+class EmptyCode(Exception):
+    """Исключение возникает, когда установили атрибуту code значение равное пустой строке."""
+
+    def __init__(self):
+        self.text = 'Code cannot be empty string!'
