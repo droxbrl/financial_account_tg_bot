@@ -2,7 +2,7 @@
 
 from Common import into_float, formatted_sqlite_date_time_now, \
     convert_int_date_time, date_time_is_in_sqlite_format, into_int
-from typing import Optional
+from typing import Optional, Dict
 from NewExeptions import EmptyName
 from WorkerDB import get_by_id, get_available_id, insert, update
 
@@ -14,6 +14,24 @@ class Currency:
 
 class Category:
     """Модель категории затрат."""
+
+    @classmethod
+    def const_dict(cls, params: Dict[str], filled_from_db: Optional[bool] = False):
+        """
+            Конструктор класса по словарю (params).
+            В словаре должны быть ключи: 'id', 'name'.
+            По ключу 'name' должно быть значение.
+            Параметр 'filled_from_db' - опциональный - см. метод __set_filled_from_db.
+        """
+        if not isinstance(params, Dict):
+            return None
+        if 'id' not in params.keys() or 'name' not in params.keys():
+            return None
+
+        return cls(
+            category_id=params.get('id'),
+            category_name=params.get('name')
+        ).__set_filled_from_db(filled_from_db=filled_from_db)
 
     def __init__(self, category_id: Optional[int or str] = None, category_name: Optional[str] = None):
         self.__id = category_id
@@ -62,7 +80,7 @@ class Category:
         )
         if category_id is not None:
             self.set_name(category_name=category['name'])
-            self.__filled_from_db = True
+            self.__set_filled_from_db(filled_from_db=True)
 
     def save(self):
         """Записывает данные категории в БД или обновляет имя, если ранее данные были получены из БД."""
@@ -81,7 +99,7 @@ class Category:
                 table_name='categories',
                 column_values=self.__into_dict()
             )
-            self.__filled_from_db = True
+            self.__set_filled_from_db(filled_from_db=True)
         else:
             update(
                 table_name='categories',
@@ -99,6 +117,10 @@ class Category:
             'id': self.get_id(),
             'name': self.get_name(),
         }
+
+    def __set_filled_from_db(self, filled_from_db: bool):
+        """Устанавливает признак того, получены ли данные категории из БД."""
+        self.__filled_from_db = filled_from_db
 
 
 class Invoice:
