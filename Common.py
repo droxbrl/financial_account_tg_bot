@@ -13,6 +13,8 @@ def into_int(input_value: str or int or float) -> int or None:
             result = int(''.join(input_value.split()))
         except ValueError:
             result = None
+        except TypeError:
+            result = None
         return result
 
 
@@ -26,6 +28,8 @@ def into_float(input_value: str or int) -> float or None:
         try:
             result = float(''.join(input_value.split()).replace(',', '.'))
         except ValueError:
+            result = None
+        except TypeError:
             result = None
         return result
 
