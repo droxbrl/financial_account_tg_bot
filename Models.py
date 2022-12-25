@@ -3,14 +3,120 @@
 from Common import into_float, formatted_sqlite_date_time_now, \
     convert_int_date_time, date_time_is_in_sqlite_format, into_int
 from typing import Optional, Dict, List
-from NewExeptions import EmptyName
-from WorkerDB import insert, update,\
+from NewExeptions import EmptyName, EmptyCode
+from WorkerDB import insert, update, \
     get_by_id, get_available_id, get_all
 
 
 class Currency:
     """Модель валюты."""
-    pass  # TODO: Реализовать класс
+
+    def __init__(self, currency_code: Optional[str] = None, currency_id: Optional[int or str] = None):
+        if isinstance(currency_code, str):
+            currency_code = currency_code.strip().upper()
+        self.__code = currency_code
+        if isinstance(currency_id, str) or isinstance(currency_id, int):
+            currency_id = into_int(currency_id)
+        self.__id = currency_id
+        self.__filled_from_db = False
+
+    @classmethod
+    def cnstr_dict(cls, dict_data: Dict, filled_from_db: Optional[bool] = False):
+        """
+            Конструктор класса по словарю (dict_data).
+            В словаре должны быть ключи: 'code', 'id'.
+            По ключу 'code' должно быть значение.
+            Параметр 'filled_from_db' - опциональный - см. метод __set_filled_from_db.
+        """
+        if not isinstance(dict_data, Dict):
+            return None
+        if 'code' not in dict_data.keys() or 'id' not in dict_data.keys():
+            return None
+        currency_code = dict_data.get('code')
+        if not currency_code:
+            return None
+        cls_example = cls(
+            currency_id=dict_data.get('id'),
+            currency_code=currency_code
+        )
+        cls_example.__set_filled_from_db(filled_from_db=filled_from_db)
+        return cls_example
+
+    def set_code(self, currency_code: str):
+        """
+            Устанавливает код (code) валюты.
+            Если ранее данные были получены из БД, то запрещает изменять код валюты.
+        """
+        if not self.__filled_from_db:
+            self.__code = currency_code.strip().upper()
+
+    def set_id(self, currency_id: Optional[int or str] = None):
+        """
+            Устанавливает переданный id валюты если он равен новому доступному,
+            если нет - устанавливает новый доступный id.
+        """
+        available_id = self.__get_available_id()
+        if currency_id is None:
+            currency_id = self.__get_available_id()
+        currency_id = into_int(input_value=currency_id)
+        if currency_id is None:
+            raise ValueError
+        if currency_id != available_id:
+            currency_id = available_id
+        self.__id = currency_id
+
+    def get_code(self) -> str or None:
+        """Возвращает код (code) валюты."""
+        return self.__code
+
+    def get_id(self) -> int or None:
+        """Возвращает id валюты."""
+        return self.__id
+
+    def fill_from_db(self, currency_code: Optional[int or str] = None):
+        """
+            Выполняет запрос к БД по коду (code) валюты.
+            Если не передан category_id - использует установленный код (code),
+            если передан - устанавливает код (code) валюты.
+            Если существует запись с таким кодом (code) - заполняет атрибут id.
+        """
+        self.set_code(currency_code=currency_code)
+        currency = get_by_id(
+            table_name='currencies',
+            columns=['code', 'id'],
+            id=self.get_code(),
+            column_id_name='code'
+        )
+
+        if currency is not None:
+            self.__id = currency['id']
+            self.__set_filled_from_db(filled_from_db=True)
+
+    def save(self):
+        """Записывает данные валюты в БД."""
+        if not self.get_code():
+            raise EmptyCode
+        if not self.__filled_from_db:
+            self.set_id()
+
+        insert(table_name='currencies',
+               column_values=self.__into_dict()
+               )
+
+    def __get_available_id(self) -> int:
+        """Возвращает доступный id для новой записи в БД."""
+        return get_available_id(table_name='currencies')
+
+    def __set_filled_from_db(self, filled_from_db: bool):
+        """Устанавливает признак того, получены ли данные валюты из БД."""
+        self.__filled_from_db = filled_from_db
+
+    def __into_dict(self):
+        """Возвращает словарь где ключи - имена атрибутов класса, а значения - значения атрибутов класса."""
+        return {
+            'code': self.get_code(),
+            'id': self.get_id(),
+        }
 
 
 class Category:
@@ -24,7 +130,7 @@ class Category:
     @classmethod
     def cnstr_dict(cls, dict_data: Dict, filled_from_db: Optional[bool] = False):
         """
-            Конструктор класса по словарю (params).
+            Конструктор класса по словарю (dict_data).
             В словаре должны быть ключи: 'id', 'name'.
             По ключу 'name' должно быть значение.
             Параметр 'filled_from_db' - опциональный - см. метод __set_filled_from_db.
@@ -81,7 +187,7 @@ class Category:
             columns=['id', 'name'],
             id=category_id
         )
-        if category_id is not None:
+        if category is not None:
             self.set_name(category_name=category['name'])
             self.__set_filled_from_db(filled_from_db=True)
 
@@ -236,3 +342,19 @@ def all_categories_from_db() -> List[Category]:
     for category in categories:
         result.append(Category.cnstr_dict(dict_data=category, filled_from_db=True))
     return result
+
+
+def all_currencies_from_db() -> List[Category]:
+    """Возвращает список всех валют из БД или пустой список, если нет записей в таблице."""
+    currencies = get_all(table_name='currencies')
+    result = []
+    if currencies is None:
+        return result
+    elif len(currencies) == 0:
+        return result
+
+    for currency in currencies:
+        result.append(Currency.cnstr_dict(dict_data=currency, filled_from_db=True))
+    return result
+
+
