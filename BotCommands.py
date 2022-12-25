@@ -1,6 +1,7 @@
 """Модуль команд бота."""
 from telebot import types
 from typing import Optional
+from Models import all_categories_from_db, all_currencies_from_db
 
 
 class BotKeyboard:
@@ -80,4 +81,44 @@ class ReportKeyboard(BotKeyboard):
             types.InlineKeyboardButton("Расходы", callback_data='expenses'),
             types.InlineKeyboardButton("Доходы", callback_data='income'),
         )
+        self.set_keyboard(keyboard=keyboard)
+
+
+class CategoriesKeyboard(BotKeyboard):
+    """
+        Клавиатура для выбора категории затрат.
+        id: 'categories',
+        Кнопки: [category_id_{id}].
+    """
+
+    def __init__(self):
+        super().__init__(keyboard_id='categories')
+        keyboard = types.InlineKeyboardMarkup()
+        for category in all_categories_from_db():
+            keyboard.add(
+                types.InlineKeyboardButton(
+                    category.get_name(),
+                    callback_data=f'category_id_{category.get_id()}'
+                )
+            )
+        self.set_keyboard(keyboard=keyboard)
+
+
+class CurrenciesKeyboard(BotKeyboard):
+    """
+        Клавиатура для выбора валюты.
+        id: 'currencies',
+        Кнопки: [currency_id_{id}].
+    """
+
+    def __init__(self):
+        super().__init__(keyboard_id='currencies')
+        keyboard = types.InlineKeyboardMarkup()
+        for currency in all_currencies_from_db():
+            keyboard.add(
+                types.InlineKeyboardButton(
+                    currency.get_code(),
+                    callback_data=f'currency_id_{currency.get_id()}'
+                )
+            )
         self.set_keyboard(keyboard=keyboard)
