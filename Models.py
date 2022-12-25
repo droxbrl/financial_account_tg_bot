@@ -16,7 +16,7 @@ class Category:
     """Модель категории затрат."""
 
     @classmethod
-    def const_dict(cls, params: Dict[str], filled_from_db: Optional[bool] = False):
+    def cnstr_dict(cls, params: Dict[str], filled_from_db: Optional[bool] = False):
         """
             Конструктор класса по словарю (params).
             В словаре должны быть ключи: 'id', 'name'.
