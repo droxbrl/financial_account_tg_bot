@@ -156,7 +156,7 @@ class Rows:
             for row in rows:
                 self.append(row=row)
 
-    def append(self, row: Row or None):
+    def append(self, row: Optional[Row] = None):
         """Добавляет строку в коллекцию строк."""
         if isinstance(row, Row):
             self.__rows.append(row)
@@ -324,7 +324,7 @@ class TreeRows(Rows):
 class TreeTable(Table):
     """Модель дерева значений."""
 
-    def __init__(self, columns: list or str or None or TreeRows, rows: None or Any or TreeRow):
+    def __init__(self, columns: list or str or None or TreeRows, rows: Optional[TreeRow or Row or Any] = None):
         super().__init__(columns, rows)
 
     def get_parent(self, row_index: int) -> Any:

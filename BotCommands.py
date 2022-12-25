@@ -1,7 +1,8 @@
 """Модуль команд бота."""
 from telebot import types
-from typing import Optional
+from typing import Optional, List
 from Models import all_categories_from_db, all_currencies_from_db
+from Collections import TreeTable, TreeColumns, TreeRow
 
 
 class BotKeyboard:
@@ -16,6 +17,16 @@ class BotKeyboard:
         self.keyboard = keyboard
 
 
+class Button:
+    """Модель кнопки."""
+
+    def __init__(self, text: str, callback_data: Optional[str] = None,
+                 owner: Optional[str] = None, parent: Optional[str] = None):
+        self.button = types.InlineKeyboardButton(text, callback_data=callback_data)
+        self.owner = owner
+        self.parent = parent
+
+
 class StartKeyboard(BotKeyboard):
     """
         Стартовая клавиатура бота.
@@ -25,12 +36,14 @@ class StartKeyboard(BotKeyboard):
 
     def __init__(self):
         super().__init__(keyboard_id='start')
+        self.buttons: List[Button] = []
+        self.buttons.append(Button(text='Внести расход', callback_data='add_expenses', owner='categories'))
+        self.buttons.append(Button(text='Внести доход', callback_data='add_income', owner='currencies'))
+        self.buttons.append(Button(text='Отчеты', callback_data='reports', owner='reports'))
+
         keyboard = types.InlineKeyboardMarkup()
-        keyboard.add(
-            types.InlineKeyboardButton("Внести расход", callback_data='add_expenses'),
-            types.InlineKeyboardButton("Внести доход", callback_data='add_income'),
-            types.InlineKeyboardButton("Отчеты", callback_data='reports'),
-        )
+        for button in self.buttons:
+            keyboard.add(button.button)
         self.set_keyboard(keyboard=keyboard)
 
 
@@ -43,10 +56,12 @@ class DateKeyboard(BotKeyboard):
 
     def __init__(self):
         super().__init__(keyboard_id='date_today')
+        self.buttons: List[Button] = []
+        self.buttons.append(Button(text='На сегодня', callback_data='date_today', parent='reports'))
+
         keyboard = types.InlineKeyboardMarkup()
-        keyboard.add(
-            types.InlineKeyboardButton("На сегодня", callback_data='date_today'),
-        )
+        for button in self.buttons:
+            keyboard.add(button)
         self.set_keyboard(keyboard=keyboard)
 
 
@@ -59,14 +74,16 @@ class CommitKeyboard(BotKeyboard):
 
     def __init__(self):
         super().__init__(keyboard_id='commit')
+        self.buttons: List[Button] = []
+        self.buttons.append(Button(text='Подтвердить', callback_data='commit', parent='# User input'))
+
         keyboard = types.InlineKeyboardMarkup()
-        keyboard.add(
-            types.InlineKeyboardButton("Подтвердить", callback_data='commit'),
-        )
+        for button in self.buttons:
+            keyboard.add(button)
         self.set_keyboard(keyboard=keyboard)
 
 
-class ReportKeyboard(BotKeyboard):
+class ReportsKeyboard(BotKeyboard):
     """
         Клавиатура для выбора отчета.
         id: 'reports',
@@ -75,12 +92,17 @@ class ReportKeyboard(BotKeyboard):
 
     def __init__(self):
         super().__init__(keyboard_id='reports')
+        self.buttons: List[Button] = []
+        self.buttons.append(
+            Button(text='Остатки', callback_data='account_balance', parent='reports', owner='date_today'))
+        self.buttons.append(
+            Button(text='Расходы', callback_data='expenses', parent='reports', owner='date_today'))
+        self.buttons.append(
+            Button(text='Доходы', callback_data='income', parent='reports', owner='date_today'))
+
         keyboard = types.InlineKeyboardMarkup()
-        keyboard.add(
-            types.InlineKeyboardButton("Остатки", callback_data='account_balance'),
-            types.InlineKeyboardButton("Расходы", callback_data='expenses'),
-            types.InlineKeyboardButton("Доходы", callback_data='income'),
-        )
+        for button in self.buttons:
+            keyboard.add(button)
         self.set_keyboard(keyboard=keyboard)
 
 
@@ -93,14 +115,21 @@ class CategoriesKeyboard(BotKeyboard):
 
     def __init__(self):
         super().__init__(keyboard_id='categories')
-        keyboard = types.InlineKeyboardMarkup()
+        self.buttons: List[Button] = []
+
         for category in all_categories_from_db():
-            keyboard.add(
-                types.InlineKeyboardButton(
-                    category.get_name(),
-                    callback_data=f'category_id_{category.get_id()}'
+            self.buttons.append(
+                Button(
+                    text=category.get_name(),
+                    callback_data=f'category_id_{category.get_id()}',
+                    parent='add_income',
+                    owner='currencies'
                 )
             )
+
+        keyboard = types.InlineKeyboardMarkup()
+        for button in self.buttons:
+            keyboard.add(button)
         self.set_keyboard(keyboard=keyboard)
 
 
@@ -113,12 +142,50 @@ class CurrenciesKeyboard(BotKeyboard):
 
     def __init__(self):
         super().__init__(keyboard_id='currencies')
+        self.buttons: List[Button] = []
+
         keyboard = types.InlineKeyboardMarkup()
         for currency in all_currencies_from_db():
-            keyboard.add(
-                types.InlineKeyboardButton(
-                    currency.get_code(),
-                    callback_data=f'currency_id_{currency.get_id()}'
+            self.buttons.append(
+                Button(
+                    text=currency.get_code(),
+                    callback_data=f'currency_id_{currency.get_id()}',
+                    parent='categories; add_expenses',
+                    owner='# User input'
                 )
             )
+        for button in self.buttons:
+            keyboard.add(button)
         self.set_keyboard(keyboard=keyboard)
+
+
+def KeyboardMap() -> TreeTable:
+    """Возвращает дерево значений, описывающее взаимосвязь команд бота."""
+    columns = TreeColumns(columns_names=['id_keyboard', 'id_button'])
+    keyboard_map = TreeTable(columns=columns)
+
+    index = 0
+    for keyboard in all_keyboards():
+        for button in keyboard.buttons:
+            row = TreeRow(values=[keyboard.keyboard_id, button.button.callback_data])
+            keyboard_map.rows.append(row=row)
+            keyboard_map.set_owner(row_index=index, owner=button.owner)
+            keyboard_map.set_parent(row_index=index, parent=button.parent)
+            index += 1
+
+    return keyboard_map
+
+
+def all_keyboards() -> List:
+    """Возвращает все клавиатуры."""
+    return [
+        StartKeyboard(),
+        DateKeyboard(),
+        CommitKeyboard(),
+        ReportsKeyboard(),
+        CategoriesKeyboard(),
+        CurrenciesKeyboard(),
+    ]
+
+
+test = KeyboardMap()
