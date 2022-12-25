@@ -186,6 +186,3 @@ def all_keyboards() -> List:
         CategoriesKeyboard(),
         CurrenciesKeyboard(),
     ]
-
-
-test = KeyboardMap()
