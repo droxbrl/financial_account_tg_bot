@@ -1,6 +1,6 @@
 """Универсальные коллекции значений."""
 
-from typing import Any
+from typing import Any, Optional
 from NewExeptions import NoSuchColumn, ValuesMoreThanColumns, RowIndexError
 
 
@@ -150,6 +150,7 @@ class Rows:
     def __init__(self, rows: list[Row] or None or Any):
         self.__rows = []
         if rows is not None:
+            rows = [rows]
             if not isinstance(rows, list):
                 rows = [rows]
             for row in rows:
@@ -204,17 +205,17 @@ class Rows:
 class Table:
     """Модель таблицы."""
 
-    def __init__(self, columns: list or str or None or Columns, rows: None or Any or Rows):
-        self.__rows = Rows(rows=None)
-        self.__columns = Columns(columns_names=None)
+    def __init__(self, columns: Optional[list or str or Columns] = None, rows: Optional[Rows or Any] = None):
+        self.rows = Rows(rows=None)
+        self.columns = Columns(columns_names=None)
         if not isinstance(rows, Rows):
             rows = Rows(rows=rows)
         if isinstance(columns, Columns):
-            self.__columns = columns
+            self.columns = columns
         else:
-            self.__columns = Columns(columns_names=columns)
+            self.columns = Columns(columns_names=columns)
 
-        columns_count = self.__columns.count()
+        columns_count = self.columns.count()
         for row in rows.get_rows():
             row_count = row.count()
             if row_count > columns_count:
@@ -226,7 +227,7 @@ class Table:
                     row.append(value=None)
                     difference -= 1
 
-        self.__rows = rows
+        self.rows = rows
 
     class __Cell:
         """ Описывает модель ячейки таблицы."""
@@ -263,11 +264,11 @@ class Table:
 
     def get_columns(self) -> Columns:
         """Возвращает коллекцию колонок таблицы."""
-        return self.__columns
+        return self.columns
 
     def get_rows(self) -> Rows:
         """Возвращает коллекцию строк таблицы."""
-        return self.__rows
+        return self.rows
 
     def __find_cell(self, column: int or Column or str, row_index: int) -> __Cell:
         """ Ищет и возвращает ячейку (__Cell) таблицы по индексу колонки и строки (Row),
@@ -328,7 +329,6 @@ class TreeTable(Table):
 
     def get_parent(self, row_index: int) -> Any:
         """ Возвращает значение поля Родитель ячейки по индексу строки. """
-
         return self.get_value(column='Parent', row_index=row_index)
 
     def get_owner(self, row_index: int) -> Any:
