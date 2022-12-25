@@ -2,9 +2,10 @@
 
 from Common import into_float, formatted_sqlite_date_time_now, \
     convert_int_date_time, date_time_is_in_sqlite_format, into_int
-from typing import Optional, Dict
+from typing import Optional, Dict, List
 from NewExeptions import EmptyName
-from WorkerDB import get_by_id, get_available_id, insert, update
+from WorkerDB import insert, update,\
+    get_by_id, get_available_id, get_all
 
 
 class Currency:
@@ -15,28 +16,30 @@ class Currency:
 class Category:
     """Модель категории затрат."""
 
+    def __init__(self, category_id: Optional[int or str] = None, category_name: Optional[str] = None):
+        self.__id = category_id
+        self.__name = category_name
+        self.__filled_from_db = False
+
     @classmethod
-    def cnstr_dict(cls, params: Dict[str], filled_from_db: Optional[bool] = False):
+    def cnstr_dict(cls, dict_data: Dict, filled_from_db: Optional[bool] = False):
         """
             Конструктор класса по словарю (params).
             В словаре должны быть ключи: 'id', 'name'.
             По ключу 'name' должно быть значение.
             Параметр 'filled_from_db' - опциональный - см. метод __set_filled_from_db.
         """
-        if not isinstance(params, Dict):
+        if not isinstance(dict_data, Dict):
             return None
-        if 'id' not in params.keys() or 'name' not in params.keys():
+        if 'id' not in dict_data.keys() or 'name' not in dict_data.keys():
             return None
 
-        return cls(
-            category_id=params.get('id'),
-            category_name=params.get('name')
-        ).__set_filled_from_db(filled_from_db=filled_from_db)
-
-    def __init__(self, category_id: Optional[int or str] = None, category_name: Optional[str] = None):
-        self.__id = category_id
-        self.__name = category_name
-        self.__filled_from_db = False
+        cls_example = cls(
+            category_id=dict_data.get('id'),
+            category_name=dict_data.get('name')
+        )
+        cls_example.__set_filled_from_db(filled_from_db=filled_from_db)
+        return cls_example
 
     def set_id(self, category_id: Optional[str or int] = None):
         """
@@ -219,3 +222,17 @@ class Invoice:
             'income': self.get_income(),
             'expense': self.get_expense(),
         }
+
+
+def all_categories_from_db() -> List[Category]:
+    """Возвращает список всех категорий из БД или пустой список, если нет записей в таблице."""
+    categories = get_all(table_name='categories')
+    result = []
+    if categories is None:
+        return result
+    elif len(categories) == 0:
+        return result
+
+    for category in categories:
+        result.append(Category.cnstr_dict(dict_data=category, filled_from_db=True))
+    return result
