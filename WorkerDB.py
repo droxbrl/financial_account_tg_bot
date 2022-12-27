@@ -49,6 +49,58 @@ class DataBaseWorker:
         self.set_query_text('')
 
 
+def get_report(report_params: Dict, dbw: [DataBaseWorker] = None) -> Dict or None:
+    """
+        Возвращает данные о доходах/расходах/остатках исходя из параметров report_params.
+    """
+    # TODO: Добавить детализацию по категориям для оборотов-расходов.
+    #       Добавить итоги по валютам.
+    if dbw is None:
+        dbw = DataBaseWorker()
+    income, expense = 0, 0
+    columns = ['Amount', 'Code']
+    date_start = report_params.get('start_date')
+    date_end = report_params.get('end_date')
+    account_balance_type = report_params.get('account_balance_type')
+
+    if report_params.get('expenses_type'):
+        income = 0
+        expense = 1
+    if report_params.get('income_type'):
+        income = 1
+        expense = 0
+
+    if not account_balance_type:
+        dbw.set_query_text(
+            f'SELECT SUM(amount) AS Amount, C.code AS Code FROM cash_flow AS CF '
+            f'INNER JOIN currencies AS C ON CF.currency_id = C.id  '
+            f'WHERE (CF.date_time BETWEEN {repr(date_start)} AND {repr(date_end)})'
+            f'AND (CF.income = {income} and CF.expense = {expense})'
+            f' GROUP BY Code')
+    else:
+        '''Отчет об остатках.'''
+        dbw.set_query_text(
+            f'SELECT SUM(amount) AS Amount, C.code AS Code FROM cash_flow AS CF '
+            f'INNER JOIN currencies AS C ON CF.currency_id = C.id '
+            f'WHERE CF.date_time <= {repr(date_end)} '
+            f' GROUP BY Code')
+
+    try:
+        dbw.execute()
+    except sqlite3.OperationalError:
+        dbw.close()
+        return None
+    result = {}
+    sql_result = dbw.cursor.fetchall()
+    if len(sql_result) == 0:
+        return result
+    dbw.close()
+    for index, column in enumerate(sql_result):
+        result[column] = sql_result[index]
+
+    return result
+
+
 def get_by_id(id: (str, int), table_name: str, columns: List[str], column_id_name='id',
               dbw: Optional[DataBaseWorker] = None) -> Dict or None:
     """
