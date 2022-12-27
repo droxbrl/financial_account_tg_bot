@@ -1,5 +1,6 @@
 """Общие функции."""
 import datetime
+from typing import Optional
 
 
 def into_int(input_value: str or int or float) -> int or None:
@@ -69,14 +70,19 @@ def into_str_money_format(input_value: str or int or float) -> str:
     return f'{integer_part}.{fractional_part}'
 
 
-def formatted_sqlite_date_time_now() -> str:
+def formatted_sqlite_date_time_now(start_of_the_day=False, end_of_the_day=False) -> str:
     """
         Возвращает тип str текущую дату и время с точностью до секунд в формате SQLite3.
         Пример: 2022-11-12 15:11:53
     """
     dtn = datetime.datetime.now()
     date = formatted_sqlite_date_now(date=dtn)
-    time = formatted_sqlite_time_now(time=dtn)
+    if start_of_the_day:
+        time = '00:00:00'
+    elif end_of_the_day:
+        time = '23:59:59'
+    else:
+        time = formatted_sqlite_time_now(time=dtn)
     return f'{date} {time}'
 
 
@@ -108,6 +114,50 @@ def formatted_sqlite_time_now(time=None) -> str:
 def convert_int_date_time(date_time: int) -> str:
     """Преобразует дату в формат %Y-%m-%d %H:%M:%S."""
     return datetime.datetime.fromtimestamp(date_time).strftime('%Y-%m-%d %H:%M:%S')
+
+
+def into_sqlite_date_format(date: str, sep: Optional[str] = '.', no_time_income_date=True) -> str:
+    """
+        Приводит дату к формату SQLite3.
+        Пример: 21.11.2022 -> 2022-11-21
+    """
+    if not no_time_income_date:
+        date = date.strip().split(' ')[0]
+
+    date_list = date.strip().split(sep)
+    date_list.reverse()
+    result = ''
+    max_index = len(date_list)-1
+    for index, item in enumerate(date_list):
+        item = item.strip()
+        if len(item) == 1:
+            item = '0'+item
+        result += item
+        if index < max_index:
+            result += '-'
+    return result
+
+
+def into_date_format(date: str, sep: Optional[str] = '-', no_time_income_date=True) -> str:
+    """
+        Приводит дату к формату DD.MM.YYYY.
+        Пример: 2022-11-21 -> 21.11.2022
+    """
+    if not no_time_income_date:
+        date = date.strip().split(' ')[0]
+
+    date_list = date.strip().split(sep)
+    date_list.reverse()
+    result = ''
+    max_index = len(date_list)-1
+    for index, item in enumerate(date_list):
+        item = item.strip()
+        if len(item) == 1:
+            item = '0'+item
+        result += item
+        if index < max_index:
+            result += '.'
+    return result
 
 
 def date_time_is_in_sqlite_format(date_time: str) -> bool:
