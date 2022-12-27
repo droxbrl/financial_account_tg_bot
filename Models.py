@@ -1,11 +1,56 @@
 """Классы моделей данных."""
-
-from Common import into_float, formatted_sqlite_date_time_now, \
-    convert_int_date_time, date_time_is_in_sqlite_format, into_int
+from Common import into_int, into_float, formatted_sqlite_date_time_now, \
+    convert_int_date_time, date_time_is_in_sqlite_format, \
+    into_sqlite_date_format, into_date_format
 from typing import Optional, Dict, List
-from NewExeptions import EmptyName, EmptyCode
+from NewExeptions import EmptyName, EmptyCode, InvalidInvoice
 from WorkerDB import insert, update, \
-    get_by_id, get_available_id, get_all
+    get_by_id, get_available_id, get_all, get_report
+
+
+class User:
+    """Класс, описывающий модель пользователя."""
+
+    def __init__(self, user_id: (int or str), user_name: str):
+
+        self.__is_registered = False
+        self.__is_valid = False
+
+        self.__id = into_int(user_id)
+        if self.__id is not None:
+            self.__is_valid = True
+
+        if self.__is_valid:
+            self.__is_registered = self.__check_registration()
+        self.__name = user_name.strip()
+
+    def get_id(self) -> int:
+        """Возвращает id пользователя."""
+        return self.__id
+
+    def get_name(self) -> str:
+        """Возвращает name (имя) пользователя."""
+        return self.__name
+
+    def is_valid(self) -> bool:
+        """Возвращает признак, верно ли заполнены поля пользователя."""
+        return self.__is_valid
+
+    def __check_registration(self) -> bool:
+        """Проверяет, есть ли пользователь с таким id в БД."""
+        if get_by_id(
+                id=self.get_id(),
+                column_id_name='user_id',
+                table_name='users',
+                columns=['user_id', 'user_name']
+        ) is None:
+            return False
+        else:
+            return True
+
+    def is_registered(self) -> bool:
+        """ Возвращает признак того, зарегистрирован ли пользователь. """
+        return self.__is_registered
 
 
 class Currency:
@@ -73,13 +118,15 @@ class Currency:
         """Возвращает id валюты."""
         return self.__id
 
-    def fill_from_db(self, currency_code: Optional[int or str] = None):
+    def fill_from_db(self, currency_code: Optional[str] = None):
         """
             Выполняет запрос к БД по коду (code) валюты.
             Если не передан category_id - использует установленный код (code),
             если передан - устанавливает код (code) валюты.
             Если существует запись с таким кодом (code) - заполняет атрибут id.
         """
+        if currency_code is None:
+            currency_code = self.__code
         self.set_code(currency_code=currency_code)
         currency = get_by_id(
             table_name='currencies',
@@ -103,7 +150,8 @@ class Currency:
                column_values=self.__into_dict()
                )
 
-    def __get_available_id(self) -> int:
+    @staticmethod
+    def __get_available_id() -> int:
         """Возвращает доступный id для новой записи в БД."""
         return get_available_id(table_name='currencies')
 
@@ -216,7 +264,8 @@ class Category:
                 id=self.get_id()
             )
 
-    def __get_available_id(self) -> int:
+    @staticmethod
+    def __get_available_id() -> int:
         """Возвращает доступный id для новой записи в БД."""
         return get_available_id(table_name='categories')
 
@@ -235,13 +284,12 @@ class Category:
 class Invoice:
     """Модель инвойса."""
 
-    def __init__(self, amount: float or int, currency: Optional[Currency] = None,
+    def __init__(self, amount: Optional[float or int] = None, currency: Optional[Currency] = None,
                  category: Optional[Category] = None,
                  date_time: Optional[str or int] = None,
                  income=False, expense=False):
         """Конструктор по умолчанию."""
         self.date_time = None
-        amount = into_float(amount)
         if amount is None:
             amount = 0.00
         if date_time is None:
@@ -251,7 +299,7 @@ class Invoice:
         elif isinstance(date_time, str) and date_time_is_in_sqlite_format(date_time=date_time):
             self.date_time = date_time
 
-        self.amount = amount
+        self.amount = into_float(amount)
         self.currency = currency
         self.category = category
         self.income = income
@@ -285,6 +333,7 @@ class Invoice:
 
     def is_valid(self) -> bool:
         """Возвращает признак того, что все поля инвойса заполнены верно."""
+        self.__is_valid = self.__check_valid()
         return self.__is_valid
 
     def __check_valid(self) -> bool:
@@ -305,29 +354,249 @@ class Invoice:
             if self.amount > 0.00:
                 self.amount *= -1
 
+    def set_amount(self, amount: int or float or str):
+        """Устанавливает сумму."""
+        amount = into_float(amount)
+        if amount is None:
+            amount = 0.00
+        self.amount = amount
+        self.__correct_amount()
+
     def save(self):
         """Сохраняет данные инвойса в БД."""
         if not self.is_valid():
-            return  # TODO: Вызывать исключение
+            raise InvalidInvoice
 
-        # TODO: column_values для записи в БД должны иметь имена полей таблицы,
-        #  а значения - быть типами данных для полей БД.
-
-        # insert(
-        #    table_name='cash_flow',
-        #    column_values=self.__into_dic()
-        # )
+        insert(
+            table_name='cash_flow',
+            column_values=self.__into_dict()
+        )
 
     def __into_dict(self):
         """Возвращает словарь где ключи - имена атрибутов класса, а значения - значения атрибутов класса."""
+        if self.get_category() is None:
+            category_id = ''
+        else:
+            category_id = self.get_category().get_id()
+
         return {
             'date_time': self.get_date_time(),
             'amount': self.get_amount(),
-            'category': self.get_category(),
-            'currency': self.get_currency(),
+            'category_id': category_id,
+            'currency_id': self.get_currency().get_id(),
             'income': self.get_income(),
             'expense': self.get_expense(),
         }
+
+    def __str__(self):
+
+        if self.expense:
+            symbol = ''
+        else:
+            symbol = '+'
+
+        if self.category is None:
+            str_cat = ''
+        else:
+            str_cat = 'в категории ' + repr(self.category.get_name())
+
+        if self.currency is None:
+            str_cur = ''
+        else:
+            str_cur = self.currency.get_code()
+
+        return f'{symbol} {self.amount} {str_cur} {str_cat}'
+
+
+class Report:
+    """Модель отчета."""
+
+    def __init__(self, account_balance=False, expenses=False, income=False,
+                 period: Optional[str] = None):
+        self.report_types = dict(account_balance=account_balance, expenses=expenses, income=income)
+        self.period = self.parse_period(report_period=period)
+        self.__report_data = None
+
+    def __str__(self):
+        if self.__report_data is None:
+            return 'Нет данных'
+        if self.report_types.get('account_balance'):
+            smthg = 'На ' + self.end_date
+            rep_type = 'остатки'
+        else:
+            smthg = 'За ' + self.start_date + '-' + self.end_date
+            if self.report_types.get('expenses'):
+                rep_type = 'расходы'
+            else:
+                rep_type = 'доходы'
+        rep_data = ''
+        for item in self.__report_data:
+
+            curr_data = f'{item[0]} {item[1]}'
+            rep_data += curr_data + '\n'
+        text = f'{smthg} у Вас следующие {rep_type}: \n' \
+               f'{rep_data}'
+        return text
+
+    @staticmethod
+    def parse_period(report_period: Optional[str] = None, sep: Optional[str] = '-') -> Dict:
+        """Парсит период, определяет даты начала и конца."""
+        start_date = formatted_sqlite_date_time_now(start_of_the_day=True)
+        end_date = formatted_sqlite_date_time_now(end_of_the_day=True)
+        if report_period is not None:
+            date_list = report_period.strip().split(sep)
+            if len(date_list) == 2:
+                start_date = into_sqlite_date_format(date=date_list[0]) + ' 00:00:00'
+                end_date = into_sqlite_date_format(date=date_list[1]) + ' 23:59:59'
+        return dict(start=start_date, end=end_date)
+
+    @property
+    def start_date(self) -> str:
+        """Дата и время начала отчета."""
+        start_date = self.period.get('start')
+        return into_date_format(date=start_date, no_time_income_date=False)
+
+    @property
+    def end_date(self) -> str:
+        """Дата и время конца отчета."""
+        end_date = self.period.get('end')
+        return into_date_format(date=end_date, no_time_income_date=False)
+
+    @start_date.setter
+    def start_date(self, start_date: str):
+        """
+            Устанавливает дату начала.
+            Если start_date не передан - установит текущую дату и время начала дня.
+        """
+        if start_date is not None:
+            if start_date.find('-') < 0:
+                start_date += '-'
+        parsed = self.parse_period(start_date)
+        self.period.update({'start': parsed.get('start')})
+
+    @end_date.setter
+    def end_date(self, end_date: str):
+        """
+            Устанавливает дату конца.
+            Если end_date не передан - установит текущую дату и время конца дня.
+        """
+        if end_date is not None:
+            if end_date.find('-') < 0:
+                end_date = '-' + end_date
+        parsed = self.parse_period(end_date)
+        self.period.update({'end': parsed.get('end')})
+
+    def set_report_type(self,
+                        account_balance: Optional[bool] = None,
+                        expenses: Optional[bool] = None,
+                        income: Optional[bool] = None):
+        """
+            Устанавливает тип отчета.
+        """
+        if isinstance(account_balance, bool):
+            self.report_types.update({'account_balance': account_balance})
+        if isinstance(expenses, bool):
+            self.report_types.update({'expenses': expenses})
+        if isinstance(income, bool):
+            self.report_types.update({'income': income})
+
+    def fill_report_data_from_db(self):
+        """Получает данные отчета из БД."""
+        if self.__report_data is None:
+            params = self.__params_into_dict()
+            self.__report_data = get_report(report_params=params)
+
+    def __params_into_dict(self):
+        """Возвращает словарь где ключи - имена атрибутов класса, а значения - значения атрибутов класса."""
+        account_balance_type = self.report_types.get('account_balance')
+        expenses_type = self.report_types.get('expenses')
+        income_type = self.report_types.get('income')
+        return {
+            'start_date': self.period.get('start'),
+            'end_date': self.period.get('end'),
+            'account_balance_type': account_balance_type,
+            'expenses_type': expenses_type,
+            'income_type': income_type,
+        }
+
+
+class Stack:
+    """Стак созданных в процессе работы бота инвойсов и отчетов."""
+
+    def __init__(self):
+        self.__data = {}
+
+    def add_user(self, user: User, invoice: Optional[Invoice] = None, report: Optional[Report] = None):
+        """Добавляет пользователя в стак."""
+        for added_user in self.__data.keys():
+            if added_user.get_id() == user.get_id():
+                return
+
+        self.__data.update(
+            {
+                user: {
+                    'invoice': invoice,
+                    'report': report
+                }
+            }
+        )
+
+    def add_invoice(self, user: User, invoice: Invoice):
+        """Добавляет данные инвойса в стак."""
+        data = self.__data.get(user)
+        if data is not None:
+            data.update({'invoice': invoice})
+            self.__data.update({user: data})
+
+    def add_report(self, user: User, report: Report):
+        """Добавляет данные отчета в стак."""
+        data = self.__data.get(user)
+        if data is not None:
+            data.update({'report': report})
+            self.__data.update({user: data})
+
+    def get_invoice_by_user(self, user: User) -> Invoice or None:
+        """Возвращает инвойс по переданному пользователю или None."""
+        data = self.__data.get(user)
+        return data.get('invoice')
+
+    def get_report_by_user(self, user: User) -> Report or None:
+        """Возвращает отчет по переданному пользователю или None."""
+        data = self.__data.get(user)
+        return data.get('report')
+
+    def get_users(self) -> List[User] or None:
+        """Возвращает список все пользователей из стака."""
+        result = []
+        for user in self.__data.keys():
+            result.append(user)
+        if len(result) == 0:
+            return None
+        return result
+
+    def get_user_by_id(self, user_id: str or int) -> User or None:
+        """Возвращает пользователя по id или None."""
+        user_id = into_int(user_id)
+        if user_id is None:
+            return None
+        users = self.get_users()
+        if users is None:
+            return None
+        for user in users:
+            if user.get_id() == user_id:
+                return user
+        return None
+
+    def clear_all(self):
+        """Очищает стак."""
+        self.__data.clear()
+
+    def clear_by_user(self, user: User):
+        """Удаляет пользователя из стака."""
+        try:
+            self.__data.pop(user)
+        except KeyError:
+            pass
 
 
 def all_categories_from_db() -> List[Category]:
@@ -356,5 +625,3 @@ def all_currencies_from_db() -> List[Currency]:
     for currency in currencies:
         result.append(Currency.cnstr_dict(dict_data=currency, filled_from_db=True))
     return result
-
-
