@@ -34,3 +34,10 @@ class EmptyCode(Exception):
 
     def __init__(self):
         self.text = 'Code cannot be empty string!'
+
+
+class InvalidInvoice(Exception):
+    """Возникает при попытке сохранить невалидный инвойс."""
+
+    def __init__(self):
+        self.text = 'Invalid invoice data!'
