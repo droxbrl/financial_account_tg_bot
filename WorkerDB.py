@@ -53,15 +53,14 @@ def get_report(report_params: Dict, dbw: [DataBaseWorker] = None) -> Dict or Non
     """
         Возвращает данные о доходах/расходах/остатках исходя из параметров report_params.
     """
-    # TODO: Добавить детализацию по категориям для оборотов-расходов.
-    #       Добавить итоги по валютам.
+
     if dbw is None:
         dbw = DataBaseWorker()
     income, expense = 0, 0
-    columns = ['Amount', 'Code']
     date_start = report_params.get('start_date')
     date_end = report_params.get('end_date')
     account_balance_type = report_params.get('account_balance_type')
+    group_by_category = report_params.get('group_by_category', False)
 
     if report_params.get('expenses_type'):
         income = 0
@@ -70,20 +69,29 @@ def get_report(report_params: Dict, dbw: [DataBaseWorker] = None) -> Dict or Non
         income = 1
         expense = 0
 
-    if not account_balance_type:
+    if (not account_balance_type) and (not group_by_category):
         dbw.set_query_text(
             f'SELECT SUM(amount) AS Amount, C.code AS Code FROM cash_flow AS CF '
             f'INNER JOIN currencies AS C ON CF.currency_id = C.id  '
-            f'WHERE (CF.date_time BETWEEN {repr(date_start)} AND {repr(date_end)})'
-            f'AND (CF.income = {income} and CF.expense = {expense})'
-            f' GROUP BY Code')
+            f'WHERE (CF.date_time BETWEEN {repr(date_start)} AND {repr(date_end)}) '
+            f'AND (CF.income = {income} and CF.expense = {expense}) '
+            f' GROUP BY Code ')
+    elif (not account_balance_type) and group_by_category:
+        dbw.set_query_text(
+            f'SELECT SUM(CF.amount) AS Amount, Categ.Name AS Category, Curr.code FROM cash_flow CF '
+            f'INNER JOIN categories Categ on Categ.id = CF.category_id '
+            f'INNER JOIN currencies Curr on CF.currency_id = Curr.id '
+            f'WHERE (CF.date_time BETWEEN {repr(date_start)} AND {repr(date_end)}) '
+            f'AND CF.expense = {expense} '
+            f'GROUP BY Categ.Name, Curr.code '
+            f'ORDER BY amount ')
     else:
         '''Отчет об остатках.'''
         dbw.set_query_text(
             f'SELECT SUM(amount) AS Amount, C.code AS Code FROM cash_flow AS CF '
             f'INNER JOIN currencies AS C ON CF.currency_id = C.id '
             f'WHERE CF.date_time <= {repr(date_end)} '
-            f' GROUP BY Code')
+            f' GROUP BY Code ')
 
     try:
         dbw.execute()
