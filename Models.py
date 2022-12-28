@@ -412,10 +412,11 @@ class Report:
     """Модель отчета."""
 
     def __init__(self, account_balance=False, expenses=False, income=False,
-                 period: Optional[str] = None):
+                 period: Optional[str] = None, group_by_category: Optional[bool] = False):
         self.report_types = dict(account_balance=account_balance, expenses=expenses, income=income)
         self.period = self.parse_period(report_period=period)
         self.__report_data = None
+        self.group_by_category = group_by_category
 
     def __str__(self):
         if self.__report_data is None:
@@ -431,8 +432,12 @@ class Report:
                 rep_type = 'доходы'
         rep_data = ''
         for item in self.__report_data:
-
-            curr_data = f'{item[0]} {item[1]}'
+            if len(item) == 2:
+                curr_data = f'{item[0]} {item[1]}'
+            elif len(item) == 3:
+                curr_data = f'{item[0]} {item[2]} > {item[1]}'
+            else:
+                curr_data = ''
             rep_data += curr_data + '\n'
         text = f'{smthg} у Вас следующие {rep_type}: \n' \
                f'{rep_data}'
@@ -517,6 +522,7 @@ class Report:
             'account_balance_type': account_balance_type,
             'expenses_type': expenses_type,
             'income_type': income_type,
+            'group_by_category': self.group_by_category,
         }
 
 
