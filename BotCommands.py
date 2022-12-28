@@ -174,3 +174,22 @@ class CurrenciesKeyboard(BotKeyboard):
         for button in self.buttons:
             keyboard.add(button.button)
         self.set_keyboard(keyboard=keyboard)
+
+
+class YesNoKeyboard(BotKeyboard):
+    """
+           Клавиатура для ответа на вопрос.
+           id: 'group_by_category',
+           Кнопки: [group_by_category_yes, group_by_category_no].
+    """
+
+    def __init__(self):
+        super().__init__(keyboard_id='yes_no')
+        self.buttons: List[Button] = []
+        self.buttons.append(Button(text='Да', callback_data='group_by_category_yes'))
+        self.buttons.append(Button(text='Нет', callback_data='group_by_category_no'))
+
+        keyboard = types.InlineKeyboardMarkup()
+        for button in self.buttons:
+            keyboard.add(button.button)
+        self.set_keyboard(keyboard=keyboard)
