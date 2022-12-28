@@ -156,7 +156,7 @@ class Rows:
             for row in rows:
                 self.append(row=row)
 
-    def append(self, row: Optional[Row] = None):
+    def append(self, row: Optional[Row or list] = None):
         """Добавляет строку в коллекцию строк."""
         if isinstance(row, Row):
             self.__rows.append(row)
@@ -285,61 +285,4 @@ class Table:
             raise RowIndexError
 
         return self.__Cell(column=found_column, row=found_row, value=found_row.values[found_column['index']])
-
-
-class TreeColumns(Columns):
-    """
-        Модель колонок дерева значений.
-        От родителя отличается обязательным наличем колонок Parent (родитель) и Owner (владелец).
-    """
-
-    def __init__(self, columns_names: list or str or None):
-        if not isinstance(columns_names, list):
-            columns_names = [columns_names]
-        columns_names.append('Parent')
-        columns_names.append('Owner')
-        super().__init__(columns_names)
-
-
-class TreeRow(Row):
-    """
-        Модель строки.
-        Добавлены обязательные значения колонок Parent (родитель) и Owner (владелец).
-        По умолчанию None.
-    """
-
-    def __init__(self, values: list or None or Any):
-        super().__init__(values)
-        self.values.append(None)
-        self.values.append(None)
-
-
-class TreeRows(Rows):
-    """Модель дерева значений."""
-
-    def __init__(self, rows: list[Row] or None or Any):
-        super().__init__(rows)
-
-
-class TreeTable(Table):
-    """Модель дерева значений."""
-
-    def __init__(self, columns: list or str or None or TreeRows, rows: Optional[TreeRow or Row or Any] = None):
-        super().__init__(columns, rows)
-
-    def get_parent(self, row_index: int) -> Any:
-        """ Возвращает значение поля Родитель ячейки по индексу строки. """
-        return self.get_value(column='Parent', row_index=row_index)
-
-    def get_owner(self, row_index: int) -> Any:
-        """ Возвращает значение поля Владелец ячейки по индексу строки. """
-        return self.get_value(column='Owner', row_index=row_index)
-
-    def set_parent(self, parent: Any, row_index: int):
-        """Устанавливает значение поля Родитель ячейки по индексу строки."""
-        self.set_value(value=parent, column='Parent', row_index=row_index)
-
-    def set_owner(self, owner: Any, row_index: int):
-        """Устанавливает значение поля Владелец ячейки по индексу строки."""
-        self.set_value(value=owner, column='Owner', row_index=row_index)
 
