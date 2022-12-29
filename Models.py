@@ -3,7 +3,7 @@ from Common import into_int, into_float, formatted_sqlite_date_time_now, \
     convert_int_date_time, date_time_is_in_sqlite_format, \
     into_sqlite_date_format, into_date_format
 from typing import Optional, Dict, List
-from NewExeptions import EmptyName, EmptyCode, InvalidInvoice
+from NewExeptions import EmptyName, EmptyCode, InvalidInvoice, InvalidCurrencyCode, InvalidUserData
 from WorkerDB import insert, update, \
     get_by_id, get_available_id, get_all, get_report
 
@@ -51,6 +51,71 @@ class User:
     def is_registered(self) -> bool:
         """ Возвращает признак того, зарегистрирован ли пользователь. """
         return self.__is_registered
+
+    def save(self):
+        """Записывает пользователя валюты в БД."""
+        if not self.is_valid():
+            raise InvalidUserData
+        if self.is_registered():
+            return
+
+        insert(table_name='users',
+               column_values=self.__into_dict()
+               )
+
+    def __into_dict(self):
+        """Возвращает словарь где ключи - имена атрибутов класса, а значения - значения атрибутов класса."""
+        return {
+            'user_id': self.get_id(),
+            'user_name': self.get_name(),
+            'user_is_admin': 0,
+        }
+
+
+class Administrator(User):
+    """Модель администратора."""
+
+    def __init__(self):
+        admin = self.fill_from_db()
+        if admin is None:
+            super().__init__(user_id=None, user_name='')
+        else:
+            super().__init__(user_id=admin['user_id'], user_name=admin['user_name'])
+        self.__is_admin = 1
+
+    def save(self):
+        """Записывает администратора в БД."""
+        if not self.is_valid():
+            raise InvalidUserData
+        if self.is_registered():
+            update(
+                table_name='users',
+                column_values=self.__into_dict(),
+                id=self.get_id(),
+                column_id_name='user_id'
+            )
+        else:
+            insert(table_name='users',
+                   column_values=self.__into_dict()
+                   )
+
+    @staticmethod
+    def fill_from_db() -> dict or None:
+        """Получает данные из БД для атрибутов класса."""
+        return get_by_id(
+            table_name='users',
+            columns=['user_id', 'user_name', 'user_is_admin'],
+            id=1,
+            column_id_name='user_is_admin'
+        )
+
+    def __into_dict(self):
+        """Возвращает словарь где ключи - имена атрибутов класса, а значения - значения атрибутов класса."""
+        return {
+            'user_id': self.get_id(),
+            'user_name': self.get_name(),
+            'user_is_admin': self.__is_admin,
+        }
 
 
 class Currency:
@@ -143,6 +208,8 @@ class Currency:
         """Записывает данные валюты в БД."""
         if not self.get_code():
             raise EmptyCode
+        if len(self.get_code()) > 3:
+            raise InvalidCurrencyCode
         if not self.__filled_from_db:
             self.set_id()
 

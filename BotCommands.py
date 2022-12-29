@@ -129,7 +129,7 @@ class CategoriesKeyboard(BotKeyboard):
     """
         Клавиатура для выбора категории затрат.
         id: 'categories',
-        Кнопки: [category_id_{id}].
+        Кнопки: [category_id_{id}, new_category, cancel].
     """
 
     def __init__(self):
@@ -143,6 +143,7 @@ class CategoriesKeyboard(BotKeyboard):
                     callback_data=f'category_id_{category.get_id()}'
                 )
             )
+        self.buttons.append(Button(text='Добавить новую', callback_data='new_category'))
         self.buttons.append(Button(text='Отменить', callback_data='cancel'))
 
         keyboard = types.InlineKeyboardMarkup()
@@ -155,7 +156,7 @@ class CurrenciesKeyboard(BotKeyboard):
     """
         Клавиатура для выбора валюты.
         id: 'currencies',
-        Кнопки: [currency_id_{code}].
+        Кнопки: [currency_id_{code}, new_currency, cancel].
     """
 
     def __init__(self):
@@ -170,6 +171,7 @@ class CurrenciesKeyboard(BotKeyboard):
                     callback_data=f'currency_id_{currency.get_code()}'
                 )
             )
+        self.buttons.append(Button(text='Добавить новую', callback_data='new_currency'))
         self.buttons.append(Button(text='Отменить', callback_data='cancel'))
         for button in self.buttons:
             keyboard.add(button.button)
@@ -188,6 +190,25 @@ class YesNoKeyboard(BotKeyboard):
         self.buttons: List[Button] = []
         self.buttons.append(Button(text='Да', callback_data='group_by_category_yes'))
         self.buttons.append(Button(text='Нет', callback_data='group_by_category_no'))
+
+        keyboard = types.InlineKeyboardMarkup()
+        for button in self.buttons:
+            keyboard.add(button.button)
+        self.set_keyboard(keyboard=keyboard)
+
+
+class AdminYesNoKeyboard(BotKeyboard):
+    """
+           Клавиатура для ответа на вопрос для администратора о регистрации нового пользователя.
+           id: 'new_user_confirm',
+           Кнопки: [new_user_confirm_yes, new_user_confirm_no].
+    """
+
+    def __init__(self):
+        super().__init__(keyboard_id='yes_no')
+        self.buttons: List[Button] = []
+        self.buttons.append(Button(text='Да', callback_data='new_user_confirm_yes'))
+        self.buttons.append(Button(text='Нет', callback_data='new_user_confirm_no'))
 
         keyboard = types.InlineKeyboardMarkup()
         for button in self.buttons:

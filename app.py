@@ -5,8 +5,9 @@
 import telebot
 from telebot import types
 from typing import Optional
-from Models import Invoice, Stack, User, Category, Currency, Report
-from NewExeptions import InvalidInvoice
+from Models import Invoice, Stack, User, Category, Currency, Report, Administrator
+from NewExeptions import InvalidInvoice, EmptyName, EmptyCode, InvalidCurrencyCode, InvalidUserData
+from Common import into_int
 import BotCommands
 import dotenv
 import os
@@ -14,6 +15,7 @@ import os
 dotenv.load_dotenv()
 bot = telebot.TeleBot(os.getenv('TOKEN'))
 stack = Stack()
+new_users_await = {}
 
 
 def cancel(message: types.Message):
@@ -46,7 +48,7 @@ def raise_categories_kb(message: types.Message, income=False, expense=False, use
     user = stack.get_user_by_id(user_id=user_id)
     invoice = Invoice(income=income, expense=expense)
     stack.add_invoice(user=user, invoice=invoice)
-    text = 'Выберите категорию: '
+    text = 'Выберите категорию или добавьте новую: '
     markup = BotCommands.CategoriesKeyboard().keyboard
     bot.reply_to(message, text=text, reply_markup=markup)
 
@@ -87,7 +89,7 @@ def after_commit(message: types.Message, user_id: Optional[int] = None):
         markup = BotCommands.StartKeyboard().keyboard
         bot.reply_to(message, text=text, reply_markup=markup)
     except InvalidInvoice:
-        text = f'Возникла ошибка при записи данных!\n' \
+        text = f'Возникла ошибка при записи данных! Текст ошибки: \n' \
                f'{repr(InvalidInvoice().text)}'
         bot.reply_to(message, text=text)
 
@@ -180,6 +182,85 @@ def after_date_input(message: types.Message, user_id: Optional[int] = None, for_
     bot.clear_step_handler_by_chat_id(chat_id=message.chat.id)
 
 
+def adding_new_category(message: types.Message):
+    """Обрабатывает команду добавления новой категории."""
+    text = 'Введите название новой категории: '
+    markup = BotCommands.CancelKeyboard().keyboard
+    msg = bot.reply_to(message, text=text,  reply_markup=markup)
+    bot.register_next_step_handler(msg, callback=after_new_category_input)
+
+
+def after_new_category_input(message: types.Message):
+    """Добавляет новую категорию."""
+    new_category = Category(category_name=message.text.strip())
+    try:
+        new_category.save()
+        text = f'Категория {repr(new_category.get_name())} добавлена!\n' \
+               f'Выберите категорию: '
+    except EmptyName:
+        text = 'Не удалось сохранить новую категорию! Текст ошибки: \n' \
+               f'{repr(EmptyName().text)}'
+    finally:
+        markup = BotCommands.CategoriesKeyboard().keyboard
+
+    bot.reply_to(message, text=text, reply_markup=markup)
+    bot.clear_step_handler_by_chat_id(chat_id=message.chat.id)
+
+
+def adding_new_currency(message: types.Message):
+    """Обрабатывает команду добавления новой валюты."""
+    text = "Введите код новой валюты из трех симоволов, например, 'EUR': "
+    markup = BotCommands.CancelKeyboard().keyboard
+    msg = bot.reply_to(message, text=text, reply_markup=markup)
+    bot.register_next_step_handler(msg, callback=after_new_currency_input)
+
+
+def after_new_currency_input(message: types.Message):
+    """Добавляет новую валюту."""
+    new_currency = Currency(currency_code=message.text)
+    try:
+        new_currency.save()
+        text = f'Валюта {repr(new_currency.get_code())} добавлена!\n' \
+               f'Выберите валюту: '
+    except EmptyCode:
+        text = 'Не удалось сохранить новую валюту! Текст ошибки: \n' \
+               f'{repr(EmptyCode().text)}'
+    except InvalidCurrencyCode:
+        text = 'Не удалось сохранить новую валюту! Текст ошибки: \n' \
+               f'{repr(InvalidCurrencyCode().text)}'
+    finally:
+        markup = BotCommands.CurrenciesKeyboard().keyboard
+
+    bot.reply_to(message, text=text, reply_markup=markup)
+    bot.clear_step_handler_by_chat_id(chat_id=message.chat.id)
+
+
+def after_admin_confirm(message: types.Message, admin_confirmed: bool):
+    """Обрабатывает ответ администратора, если есть разрешение - сохраняет нового пользователя в БД."""
+
+    pos1 = message.html_text.find('(')
+    pos2 = message.html_text.find(')')
+    new_user_id = into_int(message.html_text[pos1:pos2+1].replace('(id: ', '').replace(')', ''))
+    if not admin_confirmed:
+        bot_answer(answer_text='Вам отказано в регистрации.', chat_id=new_user_id)
+        return
+
+    new_user_name = new_users_await.get(new_user_id)
+    new_user = User(user_id=new_user_id, user_name=new_user_name)
+    try:
+        new_user.save()
+        text = 'Пользователь успешно добавлен! \n' \
+               'Доступные команды: '
+        markup = BotCommands.StartKeyboard().keyboard
+    except InvalidUserData:
+        text = f'Ошибка при добавлении нового пользователя! Текст ошибки: \n' \
+               f'{repr(InvalidUserData().text)}'
+        markup = None
+
+    bot_answer(answer_text=text, chat_id=new_user_id, markup=markup)
+    new_users_await.clear()
+
+
 @bot.callback_query_handler(func=lambda call: True)
 def callback(call):
     """Функция-диспетчер, определяет следующие вызовы."""
@@ -190,6 +271,10 @@ def callback(call):
         bot_answer(answer_text='У Вас нет доступа.', chat_id=call.message.chat.id)
         return
     stack.add_user(user=user)
+
+    if call.data.find('new_user_confirm') > -1:
+        admin_confirmed = call.data.split('_')[-1].lower() == 'yes'
+        after_admin_confirm(message=call.message, admin_confirmed=admin_confirmed)
 
     if call.data == 'cancel':
         cancel(call.message)
@@ -223,21 +308,24 @@ def callback(call):
         after_report_type_select(message=call.message, report_type=call.data, user_id=call.from_user.id)
 
     if call.data.find('group_by_category') > -1:
-        if call.data.split('_')[-1].lower() == 'no':
-            group_by_category = False
-        else:
-            group_by_category = True
+        group_by_category = call.data.split('_')[-1].lower() == 'yes'
         after_group_select(message=call.message, user_id=call.from_user.id, group_by_category=group_by_category)
 
     if call.data == 'date_today':
         after_date_input(message=call.message, user_id=call.from_user.id, for_today=True)
+
+    if call.data == 'new_category':
+        adding_new_category(message=call.message)
+
+    if call.data == 'new_currency':
+        adding_new_currency(message=call.message)
 
     if call.data == 'commit':
         after_commit(message=call.message, user_id=call.from_user.id)
 
 
 @bot.message_handler(commands=['Start', 'start'])
-def read_command_tg_message(message: types.Message):
+def start_command_answer(message: types.Message):
     """Отвечает на команду старт."""
     user = stack.get_user_by_id(user_id=message.from_user.id)
     if user is None:
@@ -251,6 +339,49 @@ def read_command_tg_message(message: types.Message):
             chat_id=message.chat.id,
             answer_text='Готов к работе!\n'
                         'Доступные команды:',
+            markup=markup)
+
+
+@bot.message_handler(commands=['reg', 'Reg', 'REG'])
+def reg_command_answer(message: types.Message):
+    """Отвечает на команду регистрации нового пользователя."""
+    user = stack.get_user_by_id(user_id=message.from_user.id)
+    if user is None:
+        user = User(user_id=message.from_user.id, user_name=message.from_user.full_name)
+    awaiting_user = new_users_await.get(user.get_id())
+    if awaiting_user is not None:
+        bot_answer(chat_id=message.chat.id, answer_text='Пожалуйста, подождите...')
+        return
+
+    if not user.is_registered():
+        admin = Administrator()
+        admin.fill_from_db()
+        if admin.is_valid():
+            chat_id = admin.get_id()
+            markup = BotCommands.AdminYesNoKeyboard().keyboard
+            text = f'Новый пользователь @{message.from_user.username} (id: {user.get_id()}) запросил регистрацию.\n' \
+                   f'Подтвердить регистрацию пользователя?'
+            bot_answer(
+                chat_id=chat_id,
+                answer_text=text,
+                markup=markup)
+            new_users_await.update({user.get_id(): message.from_user.full_name})
+            bot_answer(
+                chat_id=message.chat.id,
+                answer_text='Пожалуйста, подождите...')
+        else:
+            text = 'Не удалось зарегистрировать нового пользователя.'
+            bot_answer(
+                chat_id=message.chat.id,
+                answer_text=text)
+    else:
+        stack.add_user(user=user)
+        text = 'Вы уже есть в списке пользователей бота!\n' \
+               'Доступные команды: '
+        markup = BotCommands.StartKeyboard().keyboard
+        bot_answer(
+            chat_id=message.chat.id,
+            answer_text=text,
             markup=markup)
 
 

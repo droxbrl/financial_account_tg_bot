@@ -109,7 +109,7 @@ def get_report(report_params: Dict, dbw: [DataBaseWorker] = None) -> Dict or Non
     return result
 
 
-def get_by_id(id: (str, int), table_name: str, columns: List[str], column_id_name='id',
+def get_by_id(id: str or int, table_name: str, columns: List[str], column_id_name='id',
               dbw: Optional[DataBaseWorker] = None) -> Dict or None:
     """
         Возвращает значения полей из таблицы БД по переданному id и списку полей, переданному в columns.

@@ -41,3 +41,17 @@ class InvalidInvoice(Exception):
 
     def __init__(self):
         self.text = 'Invalid invoice data!'
+
+
+class InvalidCurrencyCode(Exception):
+    """Исключение возникает, когда установили атрибуту code строковое значение, больше 3 символов."""
+
+    def __init__(self):
+        self.text = 'Code cannot be longer than 3 characters'
+
+
+class InvalidUserData(Exception):
+    """Возникает при попытке сохранить невалидные данные пользователя."""
+
+    def __init__(self):
+        self.text = 'Invalid user data!'
