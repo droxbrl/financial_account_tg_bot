@@ -22,7 +22,11 @@ class User:
 
         if self.__is_valid:
             self.__is_registered = self.__check_registration()
-        self.__name = user_name.strip()
+            try:
+                user_name = user_name.strip()
+            except TypeError:
+                user_name = ''
+        self.__name = user_name
 
     def get_id(self) -> int:
         """Возвращает id пользователя."""
@@ -53,7 +57,7 @@ class User:
         return self.__is_registered
 
     def save(self):
-        """Записывает пользователя валюты в БД."""
+        """Записывает пользователя БД."""
         if not self.is_valid():
             raise InvalidUserData
         if self.is_registered():
@@ -354,6 +358,7 @@ class Invoice:
     def __init__(self, amount: Optional[float or int] = None, currency: Optional[Currency] = None,
                  category: Optional[Category] = None,
                  date_time: Optional[str or int] = None,
+                 user: Optional[User] = None,
                  income=False, expense=False):
         """Конструктор по умолчанию."""
         self.date_time = None
@@ -373,6 +378,7 @@ class Invoice:
         self.expense = expense
         self.__is_valid = self.__check_valid()
         self.__correct_amount()
+        self.user = user
 
     def get_amount(self) -> float:
         """Возвращает сумму инвойса (amount)."""
@@ -446,6 +452,11 @@ class Invoice:
         else:
             category_id = self.get_category().get_id()
 
+        if self.user is None:
+            user_id = 0
+        else:
+            user_id = self.user.get_id()
+
         return {
             'date_time': self.get_date_time(),
             'amount': self.get_amount(),
@@ -453,6 +464,7 @@ class Invoice:
             'currency_id': self.get_currency().get_id(),
             'income': self.get_income(),
             'expense': self.get_expense(),
+            'user_id': user_id
         }
 
     def __str__(self):

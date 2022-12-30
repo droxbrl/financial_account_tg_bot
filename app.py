@@ -19,7 +19,7 @@ new_users_await = {}
 
 
 def cancel(message: types.Message):
-    """Отменяет все вводы, оправляет стартовые команды."""
+    """Отменяет все вводы, отправляет стартовые команды."""
     user = stack.get_user_by_id(user_id=message.from_user.id)
     stack.clear_by_user(user=user)
     bot.clear_step_handler_by_chat_id(chat_id=message.chat.id)
@@ -82,6 +82,7 @@ def after_commit(message: types.Message, user_id: Optional[int] = None):
         user_id = message.from_user.id
     user = stack.get_user_by_id(user_id=user_id)
     invoice = stack.get_invoice_by_user(user=user)
+    invoice.user = user
     try:
         invoice.save()
         text = 'Учел!'
@@ -235,7 +236,7 @@ def after_new_currency_input(message: types.Message):
     bot.clear_step_handler_by_chat_id(chat_id=message.chat.id)
 
 
-def after_admin_confirm(message: types.Message, admin_confirmed: bool):
+def after_admin_confirm(message: types.Message, admin_confirmed: bool, admin_id: int):
     """Обрабатывает ответ администратора, если есть разрешение - сохраняет нового пользователя в БД."""
 
     pos1 = message.html_text.find('(')
@@ -243,6 +244,7 @@ def after_admin_confirm(message: types.Message, admin_confirmed: bool):
     new_user_id = into_int(message.html_text[pos1:pos2+1].replace('(id: ', '').replace(')', ''))
     if not admin_confirmed:
         bot_answer(answer_text='Вам отказано в регистрации.', chat_id=new_user_id)
+        bot_answer(answer_text='Пользователю отказано в регистрации.', chat_id=admin_id)
         return
 
     new_user_name = new_users_await.get(new_user_id)
@@ -251,6 +253,7 @@ def after_admin_confirm(message: types.Message, admin_confirmed: bool):
         new_user.save()
         text = 'Пользователь успешно добавлен! \n' \
                'Доступные команды: '
+        bot_answer(answer_text='Пользователь успешно добавлен!', chat_id=admin_id)
         markup = BotCommands.StartKeyboard().keyboard
     except InvalidUserData:
         text = f'Ошибка при добавлении нового пользователя! Текст ошибки: \n' \
@@ -274,15 +277,19 @@ def callback(call):
 
     if call.data.find('new_user_confirm') > -1:
         admin_confirmed = call.data.split('_')[-1].lower() == 'yes'
-        after_admin_confirm(message=call.message, admin_confirmed=admin_confirmed)
+        after_admin_confirm(message=call.message, admin_confirmed=admin_confirmed, admin_id = call.from_user.id)
 
     if call.data == 'cancel':
         cancel(call.message)
 
     if call.data == 'add_expenses':
+        stack.clear_by_user(user=user)
+        stack.add_user(user=user)
         raise_categories_kb(message=call.message, expense=True, user_id=call.from_user.id)
 
     if call.data == 'add_income':
+        stack.clear_by_user(user=user)
+        stack.add_user(user=user)
         raise_currencies_kb(message=call.message, user_id=call.from_user.id)
 
     if call.data.find('category_id_') > -1:
@@ -347,7 +354,7 @@ def reg_command_answer(message: types.Message):
     """Отвечает на команду регистрации нового пользователя."""
     user = stack.get_user_by_id(user_id=message.from_user.id)
     if user is None:
-        user = User(user_id=message.from_user.id, user_name=message.from_user.full_name)
+        user = User(user_id=message.from_user.id, user_name=message.from_user.username)
     awaiting_user = new_users_await.get(user.get_id())
     if awaiting_user is not None:
         bot_answer(chat_id=message.chat.id, answer_text='Пожалуйста, подождите...')
