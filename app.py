@@ -277,7 +277,7 @@ def callback(call):
 
     if call.data.find('new_user_confirm') > -1:
         admin_confirmed = call.data.split('_')[-1].lower() == 'yes'
-        after_admin_confirm(message=call.message, admin_confirmed=admin_confirmed, admin_id = call.from_user.id)
+        after_admin_confirm(message=call.message, admin_confirmed=admin_confirmed, admin_id=call.from_user.id)
 
     if call.data == 'cancel':
         cancel(call.message)
@@ -354,7 +354,7 @@ def reg_command_answer(message: types.Message):
     """Отвечает на команду регистрации нового пользователя."""
     user = stack.get_user_by_id(user_id=message.from_user.id)
     if user is None:
-        user = User(user_id=message.from_user.id, user_name=message.from_user.username)
+        user = User(user_id=message.from_user.id, user_name=message.from_user.full_name)
     awaiting_user = new_users_await.get(user.get_id())
     if awaiting_user is not None:
         bot_answer(chat_id=message.chat.id, answer_text='Пожалуйста, подождите...')
