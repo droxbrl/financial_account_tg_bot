@@ -5,6 +5,8 @@ from typing import Optional
 
 def into_int(input_value: str or int or float) -> int or None:
     """Приводит к типу int, если возникает ошибка ValueError - возвращает None."""
+    if input_value is None:
+        return None
     if isinstance(input_value, int):
         return input_value
     elif isinstance(input_value, float):
