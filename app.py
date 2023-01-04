@@ -11,7 +11,9 @@ from Common import into_int
 import BotCommands
 import dotenv
 import os
+from FirstAppRun import first_run_procedure
 
+first_run_procedure()
 dotenv.load_dotenv()
 bot = telebot.TeleBot(os.getenv('TOKEN'))
 stack = Stack()

@@ -36,9 +36,21 @@ class User:
         """Возвращает name (имя) пользователя."""
         return self.__name
 
+    def set_name(self, user_name: str):
+        """Устанавливает имя."""
+        self.__name = user_name.strip()
+
+    def set_id(self, user_id: int):
+        """Устанавливает id."""
+        self.__id = user_id
+
     def is_valid(self) -> bool:
         """Возвращает признак, верно ли заполнены поля пользователя."""
         return self.__is_valid
+
+    def validation(self):
+        """Проверяет все ключевые поля на корректность заполнения."""
+        self.__is_valid = (len(self.__name) > 0  and self.__id > 0)
 
     def __check_registration(self) -> bool:
         """Проверяет, есть ли пользователь с таким id в БД."""
